@@ -672,3 +672,55 @@ class Province(object):
         if not province:
             return "unknown"
         return province
+
+
+class BeeType(object):
+    WESTERN = "western"
+    EASTERN = "eastern"
+
+    type_code_dict = {
+        "1": "western",
+        "2": "western",
+        "3": "western",
+        "5": "western",
+        "10": "western",
+        "11": "eastern",
+        "14": "western",
+        "15": "western",
+        "17": "western",
+        "18": "western",
+    }
+
+    type_string_dict = {
+        "中蜂": "eastern",
+        "东方蜜蜂": "eastern",
+        "杂交种": "western",
+        "卡尼鄂拉蜂": "western",
+        "东北黑蜂": "western",
+        "喀蜂": "western",
+        "中华蜂": "eastern",
+        "喀意蜂": "western",
+        "浆王": "western",
+        "蜜、浆王": "western",
+        "浆蜂": "western",
+        "意蜂": "western",
+        "高加索蜂": "western",
+        "欧洲黑蜂": "western",
+        "新疆黑蜂": "western",
+        "安纳托利亚蜂": "western",
+        "不知道": "western",
+    }
+
+    @staticmethod
+    def mapping_bee_type_by_code(code):
+        bee_type = BeeType.type_code_dict.get(code)
+        if bee_type:
+            return bee_type
+        return "western"
+
+    @staticmethod
+    def mapping_bee_type_by_str(race):
+        bee_type = BeeType.type_string_dict.get(race)
+        if bee_type:
+            return bee_type
+        return "western"

@@ -4,7 +4,8 @@ import scipy.stats
 import re
 from file_import import ExcelImporter
 from constants import DataImportFields1314, DataImportFields1415, \
-    DataImportFields1516, DataImportFields1617, Province, ApiarySize
+    DataImportFields1516, DataImportFields1617, Province, ApiarySize,\
+    BeeType
 from utils import is_valid_data
 
 
@@ -14,7 +15,10 @@ class DataController(object):
         super(DataController, self).__init__()
         self.confidence = 0.95
         self.loss_rate = {}
+        self.western_loss_rate = {}
+        self.eastern_loss_rate = {}
         self.province_list = set()
+        self.comb_list = set()
 
 
     def analysis(self):
@@ -25,12 +29,16 @@ class DataController(object):
         filepath = '/Users/liuchao/work3/honey_bee/181029/data/DataExport_13-14_LZG.xlsx'
         raw_data_1314 = self.get_raw_excel_data(DataImportFields1314.fields, filepath)
         data_1314 = self.clean_raw_data_1(raw_data_1314)
+        western_data_1314 = [item for item in data_1314 if item['Race'] == BeeType.WESTERN]
+        eastern_data_1314 = [item for item in data_1314 if item['Race'] == BeeType.EASTERN]
         
         # 1415年数据读入
         # 数据清洗，过滤掉无效数据
         filepath = '/Users/liuchao/work3/honey_bee/181029/data/DataExport-COLOSS14-15.xlsx'
         raw_data_1415 = self.get_raw_excel_data(DataImportFields1415.fields, filepath)
         data_1415 = self.clean_raw_data_1(raw_data_1415)
+        western_data_1415 = [item for item in data_1415 if item['Race'] == BeeType.WESTERN]
+        eastern_data_1415 = [item for item in data_1415 if item['Race'] == BeeType.EASTERN]
 
         # 1516年数据读入
         # 数据清洗，过滤掉无效数据
@@ -38,36 +46,54 @@ class DataController(object):
         filepath = '/Users/liuchao/work3/honey_bee/181029/data/Data-coloss15-16.xlsx'
         raw_data_1516 = self.get_raw_excel_data(DataImportFields1516.fields, filepath)
         data_1516 = self.clean_raw_data_2(raw_data_1516)
+        western_data_1516 = [item for item in data_1516 if item['Race'] == BeeType.WESTERN]
+        eastern_data_1516 = [item for item in data_1516 if item['Race'] == BeeType.EASTERN]
 
         # 1617年数据读入
         # 数据清洗，过滤掉无效数据
         filepath = '/Users/liuchao/work3/honey_bee/181029/data/Data-coloss 16-17.xlsx'
         raw_data_1617 = self.get_raw_excel_data(DataImportFields1617.fields, filepath)
         data_1617 = self.clean_raw_data_2(raw_data_1617)
+        western_data_1617 = [item for item in data_1617 if item['Race'] == BeeType.WESTERN]
+        eastern_data_1617 = [item for item in data_1617 if item['Race'] == BeeType.EASTERN]
 
-        # 分析损失率
+        self.province_list = sorted(self.province_list)
+        self.comb_list = sorted(self.comb_list)
+        # 按中蜂和西蜂两大组数据分析损失率
+        ################ 西蜂 #######################
+        print("西蜂")
+        self.western_loss_rate = self.calculation(western_data_1314, western_data_1415,\
+            western_data_1516, western_data_1617)
+        # print("西蜂： %s" % self.western_loss_rate)
+        ################ 中蜂 #######################
+        print("中蜂")
+        self.eastern_loss_rate = self.calculation(eastern_data_1314, eastern_data_1415,\
+            eastern_data_1516, eastern_data_1617)
+        # print("中蜂： %s" % self.eastern_loss_rate)
+
+    def calculation(self, data_1314, data_1415, data_1516, data_1617):
+        loss_rate = {}
         # 按年份损失率
         total_col_init_oct_1314 = [int(item.get('COL_INIT_OCT')) for item in data_1314]
         total_col_loss_1314 = [int(item.get('COL_LOSS')) for item in data_1314]
         loss_rate_1314 = self.cal_total_loss_rate(total_col_init_oct_1314, total_col_loss_1314)
-        self.loss_rate['13-14'] = loss_rate_1314
+        loss_rate['13-14'] = loss_rate_1314
 
         total_col_init_oct_1415 = [int(item.get('COL_INIT_OCT')) for item in data_1415]
         total_col_loss_1415 = [int(item.get('COL_LOSS')) for item in data_1415]
         loss_rate_1415 = self.cal_total_loss_rate(total_col_init_oct_1415, total_col_loss_1415)
-        self.loss_rate['14-15'] = loss_rate_1415
+        loss_rate['14-15'] = loss_rate_1415
 
         total_col_init_oct_1516 = [int(item.get('COL_INIT_OCT')) for item in data_1516]
         total_col_loss_1516 = [int(item.get('COL_LOSS')) for item in data_1516]
         loss_rate_1516 = self.cal_total_loss_rate(total_col_init_oct_1516, total_col_loss_1516)
-        self.loss_rate['15-16'] = loss_rate_1516
+        loss_rate['15-16'] = loss_rate_1516
 
         total_col_init_oct_1617 = [int(item.get('COL_INIT_OCT')) for item in data_1617]
         total_col_loss_1617 = [int(item.get('COL_LOSS')) for item in data_1617]
         loss_rate_1617 = self.cal_total_loss_rate(total_col_init_oct_1617, total_col_loss_1617)
-        self.loss_rate['16-17'] = loss_rate_1617
+        loss_rate['16-17'] = loss_rate_1617
         
-
         # 总损失率
         total_data = data_1314 + data_1415 + data_1516 + data_1617
         total_col_init_oct = total_col_init_oct_1314 + total_col_init_oct_1415 + \
@@ -75,12 +101,24 @@ class DataController(object):
         total_col_loss = total_col_loss_1314 + total_col_loss_1415 + \
                             total_col_loss_1516 + total_col_loss_1617
         total_loss_rate = self.cal_total_loss_rate(total_col_init_oct, total_col_loss)
-        self.loss_rate['total'] = total_loss_rate
+        loss_rate['total'] = total_loss_rate
         
         # 按省份损失率
-        self.loss_rate['province'] = {}
+        loss_rate['province'] = {}
         province_col_init = {}
         province_col_loss = {}
+
+        # 按蜂群大小损失率
+        loss_rate['apiary'] = {}
+        apiary_col_init = {}
+        apiary_col_loss = {}
+
+        # 新脾比例 Comb
+        loss_rate['comb'] = {}
+        comb_col_init = {}
+        comb_col_loss = {}
+
+
         for item in total_data:
             province = item['Province']
             col_init = int(item.get('COL_INIT_OCT'))
@@ -92,20 +130,10 @@ class DataController(object):
             else:
                 province_col_init[province].append(col_init)
                 province_col_loss[province].append(col_loss)
-        # print(province_col_init)
-        for province in self.province_list:
-            province_loss_rate = self.cal_total_loss_rate(province_col_init[province], province_col_loss[province])
-            self.loss_rate['province'][province] = province_loss_rate
-
-        import pdb; pdb.set_trace()
-        # 按蜂群大小损失率
-        self.loss_rate['apiary'] = {}
-        apiary_col_init = {}
-        apiary_col_loss = {}
-        for item in total_data:
+        
             apiary = item['ApiarySize']
-            col_init = int(item.get('COL_INIT_OCT'))
-            col_loss = int(item.get('COL_LOSS'))
+            # col_init = int(item.get('COL_INIT_OCT'))
+            # col_loss = int(item.get('COL_LOSS'))
 
             if apiary not in apiary_col_init.keys():
                 apiary_col_init[apiary] = [col_init]
@@ -113,11 +141,69 @@ class DataController(object):
             else:
                 apiary_col_init[apiary].append(col_init)
                 apiary_col_loss[apiary].append(col_loss)
-        # print(apiary_col_init)
+
+            comb = item['Comb']
+            # col_init = int(item.get('COL_INIT_OCT'))
+            # col_loss = int(item.get('COL_LOSS'))
+
+            if comb not in comb_col_init.keys():
+                comb_col_init[comb] = [col_init]
+                comb_col_loss[comb] = [col_loss]
+            else:
+                comb_col_init[comb].append(col_init)
+                comb_col_loss[comb].append(col_loss)
+
+
+        # 按省份损失率
+        for province in self.province_list:
+            if province not in province_col_init.keys():
+                loss_rate['province'][province] = (0.0, 0.0, 0.0)
+            else:
+                province_loss_rate = self.cal_total_loss_rate(province_col_init[province], province_col_loss[province])
+                loss_rate['province'][province] = province_loss_rate
+            
+        # 按蜂群大小损失率
         for apiary in [ApiarySize.SMALL, ApiarySize.MEDIUM, ApiarySize.LARGE]:
             apiary_loss_rate = self.cal_total_loss_rate(apiary_col_init[apiary], apiary_col_loss[apiary])
-            self.loss_rate['apiary'][apiary] = apiary_loss_rate
+            loss_rate['apiary'][apiary] = apiary_loss_rate
 
+        # 新脾比例 Comb
+        # 散点图和线性回归？？？？
+        for comb in self.comb_list:
+            if comb not in comb_col_init.keys():
+                loss_rate['comb'][comb] = (0.0, 0.0, 0.0)
+            else:
+                comb_loss_rate = self.cal_total_loss_rate(comb_col_init[comb], comb_col_loss[comb])
+                loss_rate['comb'][comb] = comb_loss_rate
+        print(loss_rate['comb'])
+        
+        # 平均每群产蜜量
+
+
+        # 采用的换王方法： 自然更换王替， 购买蜂王，自己育王
+
+
+        # 新蜂王比例
+
+
+
+        # 换王次数
+
+
+        
+        # 蜜源植物
+
+
+        # 蜂种
+
+
+        # 敌害
+
+
+        # 越冬饲喂
+
+
+        # 治螨
 
         '''
         {'14-15': (0.11516167557015994, 0.10275074376876998, 0.1275726073715499), 
@@ -125,9 +211,12 @@ class DataController(object):
         'total': (0.10097859910256822, 0.0967598904044299, 0.10519730780070655), 
         '13-14': (0.09469177253805378, 0.08764194209700885, 0.1017416029790987), 
         '15-16': (0.11110466980145861, 0.1026427608405073, 0.11956657876240992),
-        'province': {'beijing': (xxx, xxx, xxx)}}
+        'province': {'beijing': (xxx, xxx, xxx)}},
+        'apiary': {'small': (xxx, xxx, xxx)}},
+        'comb': {'0': (xxx, xxx, xxx)}},
         '''
-        print(self.loss_rate)
+        return loss_rate
+
     def get_raw_excel_data(self, importfields, filepath):
         # 读取excel的数据
         excel_importer = ExcelImporter(importfields)
@@ -180,8 +269,17 @@ class DataController(object):
             value['ApiarySize'] = apiary_size
             row_value['ApiarySize'] = apiary_size
             # 蜂群种类： 西蜂。。。
-
-
+            type_code = value.get("Race", 0)
+            bee_type = BeeType.mapping_bee_type_by_code(str(type_code))
+            value['Race'] = bee_type
+            row_value['Race'] = bee_type
+            # 新脾比例
+            comb = value.get("Comb", 0)
+            comb = int(comb)
+            value['Comb'] = comb
+            row_value['Comb'] = comb
+            self.comb_list.add(comb)
+            # 
             data.append(value)
 
         return data
@@ -230,6 +328,30 @@ class DataController(object):
             value['ApiarySize'] = apiary_size
             row_value['ApiarySize'] = apiary_size
             # 蜂群种类： 西蜂。。。
+            type_code = value.get("Race", 0)
+            bee_type = BeeType.mapping_bee_type_by_str(str(type_code))
+            value['Race'] = bee_type
+            row_value['Race'] = bee_type
+            # 新脾比例  如果表格数据为空怎么处理？？？？TODO
+            comb = value.get("Comb", 0)
+            try:
+                if isinstance(comb, str):
+                    if '%' in comb:
+                        comb = comb[:-1]
+                    elif ':' in comb:
+                        comb = comb.split(":")
+                        comb = int((int(comb[0])/int(comb[1]))*100)
+                    elif '-' in comb:
+                        continue
+                else:
+                    if comb < 1:
+                        comb *= 100
+                comb = int(comb)
+                value['Comb'] = comb
+                row_value['Comb'] = comb
+                self.comb_list.add(comb)
+            except:
+                continue
 
 
 
