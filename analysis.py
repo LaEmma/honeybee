@@ -26,7 +26,8 @@ class DataController(object):
         # 1314年数据读入
         # 数据清洗，过滤掉无效数据
         # import pdb; pdb.set_trace()
-        filepath = '/Users/liuchao/work3/honey_bee/181029/data/DataExport_13-14_LZG.xlsx'
+        # filepath = '/Users/liuchao/work3/honey_bee/181029/data/DataExport_13-14_LZG.xlsx'
+        filepath = '/F/Emma/honeybee/181029/data/DataExport_13-14_LZG.xlsx'
         raw_data_1314 = self.get_raw_excel_data(DataImportFields1314.fields, filepath)
         data_1314 = self.clean_raw_data_1(raw_data_1314)
         western_data_1314 = [item for item in data_1314 if item['Race'] == BeeType.WESTERN]
@@ -73,6 +74,20 @@ class DataController(object):
 
     def calculation(self, data_1314, data_1415, data_1516, data_1617):
         loss_rate = {}
+        loss_rate1314 = {}
+        loss_rate1415 = {}
+        loss_rate1516 = {}
+        loss_rate1617 = {}
+        # 准备数据
+        total_data = data_1314 + data_1415 + data_1516 + data_1617
+        total_col_init_oct = total_col_init_oct_1314 + total_col_init_oct_1415 + \
+                            total_col_init_oct_1516 + total_col_init_oct_1617
+        total_col_loss = total_col_loss_1314 + total_col_loss_1415 + \
+                            total_col_loss_1516 + total_col_loss_1617
+        loss_rate = self.inner_calculation(total_data)
+        # 总损失率
+        total_loss_rate = self.cal_total_loss_rate(total_col_init_oct, total_col_loss)
+        loss_rate['total'] = total_loss_rate
         # 按年份损失率
         total_col_init_oct_1314 = [int(item.get('COL_INIT_OCT')) for item in data_1314]
         total_col_loss_1314 = [int(item.get('COL_LOSS')) for item in data_1314]
@@ -94,16 +109,33 @@ class DataController(object):
         loss_rate_1617 = self.cal_total_loss_rate(total_col_init_oct_1617, total_col_loss_1617)
         loss_rate['16-17'] = loss_rate_1617
         
-        # 总损失率
-        total_data = data_1314 + data_1415 + data_1516 + data_1617
-        total_col_init_oct = total_col_init_oct_1314 + total_col_init_oct_1415 + \
-                            total_col_init_oct_1516 + total_col_init_oct_1617
-        total_col_loss = total_col_loss_1314 + total_col_loss_1415 + \
-                            total_col_loss_1516 + total_col_loss_1617
-        total_loss_rate = self.cal_total_loss_rate(total_col_init_oct, total_col_loss)
-        loss_rate['total'] = total_loss_rate
+        loss_rate1314 = self.inner_calculation(data_1314)
+        loss_rate1415 = self.inner_calculation(data_1415)
+        loss_rate1516 = self.inner_calculation(data_1516)
+        loss_rate1617 = self.inner_calculation(data_1617)
         
+        '''
+        {'14-15': (0.11516167557015994, 0.10275074376876998, 0.1275726073715499), 
+        '16-17': (0.09276281408596232, 0.08539412757129532, 0.10013150060062932), 
+        'total': (0.10097859910256822, 0.0967598904044299, 0.10519730780070655), 
+        '13-14': (0.09469177253805378, 0.08764194209700885, 0.1017416029790987), 
+        '15-16': (0.11110466980145861, 0.1026427608405073, 0.11956657876240992),
+        'province': {'beijing': (xxx, xxx, xxx)}},
+        'apiary': {'small': (xxx, xxx, xxx)}},
+        'comb': {'0': (xxx, xxx, xxx)}},
+        '''
+        return {
+            "total": loss_rate,
+            "13-14": loss_rate1314,
+            "14-15": loss_rate1415,
+            "15-16": loss_rate1516,
+            "16-17": loss_rate1617,
+        }
+
+
+    def inner_calculation(self, input_data):
         # 按省份损失率
+        loss_rate = {}
         loss_rate['province'] = {}
         province_col_init = {}
         province_col_loss = {}
@@ -118,8 +150,7 @@ class DataController(object):
         comb_col_init = {}
         comb_col_loss = {}
 
-
-        for item in total_data:
+        for item in input_data:
             province = item['Province']
             col_init = int(item.get('COL_INIT_OCT'))
             col_loss = int(item.get('COL_LOSS'))
@@ -157,24 +188,29 @@ class DataController(object):
         # 按省份损失率
         for province in self.province_list:
             if province not in province_col_init.keys():
+                loss_rate['province'][province]["num"] = 0
                 loss_rate['province'][province] = (0.0, 0.0, 0.0)
             else:
                 province_loss_rate = self.cal_total_loss_rate(province_col_init[province], province_col_loss[province])
-                loss_rate['province'][province] = province_loss_rate
+                loss_rate['province'][province]["num"] = len(province_col_init[province])
+                loss_rate['province'][province]["mfi"] = province_loss_rate
             
         # 按蜂群大小损失率
         for apiary in [ApiarySize.SMALL, ApiarySize.MEDIUM, ApiarySize.LARGE]:
             apiary_loss_rate = self.cal_total_loss_rate(apiary_col_init[apiary], apiary_col_loss[apiary])
-            loss_rate['apiary'][apiary] = apiary_loss_rate
+            loss_rate['apiary'][apiary]["num"] = len(apiary_col_init[apiary])
+            loss_rate['apiary'][apiary]["mfi"] = apiary_loss_rate
 
         # 新脾比例 Comb
         # 散点图和线性回归？？？？
         for comb in self.comb_list:
             if comb not in comb_col_init.keys():
-                loss_rate['comb'][comb] = (0.0, 0.0, 0.0)
+                loss_rate['comb'][comb]["num"] = 0
+                loss_rate['comb'][comb]["mfi"] = (0.0, 0.0, 0.0)
             else:
                 comb_loss_rate = self.cal_total_loss_rate(comb_col_init[comb], comb_col_loss[comb])
-                loss_rate['comb'][comb] = comb_loss_rate
+                loss_rate['comb'][comb]["num"] = len(comb_col_init[comb])
+                loss_rate['comb'][comb]["mfi"] = comb_loss_rate
         print(loss_rate['comb'])
         
         # 平均每群产蜜量
@@ -205,16 +241,6 @@ class DataController(object):
 
         # 治螨
 
-        '''
-        {'14-15': (0.11516167557015994, 0.10275074376876998, 0.1275726073715499), 
-        '16-17': (0.09276281408596232, 0.08539412757129532, 0.10013150060062932), 
-        'total': (0.10097859910256822, 0.0967598904044299, 0.10519730780070655), 
-        '13-14': (0.09469177253805378, 0.08764194209700885, 0.1017416029790987), 
-        '15-16': (0.11110466980145861, 0.1026427608405073, 0.11956657876240992),
-        'province': {'beijing': (xxx, xxx, xxx)}},
-        'apiary': {'small': (xxx, xxx, xxx)}},
-        'comb': {'0': (xxx, xxx, xxx)}},
-        '''
         return loss_rate
 
     def get_raw_excel_data(self, importfields, filepath):
@@ -274,7 +300,10 @@ class DataController(object):
             value['Race'] = bee_type
             row_value['Race'] = bee_type
             # 新脾比例
-            comb = value.get("Comb", 0)
+            comb = value.get("Comb")
+            if comb is None:
+                # 不合格数据
+                continue
             comb = int(comb)
             value['Comb'] = comb
             row_value['Comb'] = comb
@@ -332,8 +361,11 @@ class DataController(object):
             bee_type = BeeType.mapping_bee_type_by_str(str(type_code))
             value['Race'] = bee_type
             row_value['Race'] = bee_type
-            # 新脾比例  如果表格数据为空怎么处理？？？？TODO
-            comb = value.get("Comb", 0)
+            # 新脾比例  如果表格数据为空则认为是非法数据
+            comb = value.get("Comb")
+            if comb is None:
+                # 不合格数据
+                continue
             try:
                 if isinstance(comb, str):
                     if '%' in comb:
@@ -342,7 +374,11 @@ class DataController(object):
                         comb = comb.split(":")
                         comb = int((int(comb[0])/int(comb[1]))*100)
                     elif '-' in comb:
-                        continue
+                        # 20%-30% 的情况
+                        comb_list = comb.split("-")
+                        min_comb = comb_list[0][:-1]
+                        max_comb = comb_list[1][:-1]
+                        comb = (float(min_comb)+float(max_comb))/2
                 else:
                     if comb < 1:
                         comb *= 100
