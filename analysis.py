@@ -19,6 +19,9 @@ class DataController(object):
         self.eastern_loss_rate = {}
         self.province_list = set()
         self.comb_list = set()
+        self.qchange_num_list = set()
+        self.base_path = "F:/Emma/data/"
+        # self.base_path = "/Users/liuchao/work3/honey_bee/181029/data/"
 
 
     def analysis(self):
@@ -27,7 +30,7 @@ class DataController(object):
         # 数据清洗，过滤掉无效数据
         # import pdb; pdb.set_trace()
         # filepath = '/Users/liuchao/work3/honey_bee/181029/data/DataExport_13-14_LZG.xlsx'
-        filepath = '/F/Emma/honeybee/181029/data/DataExport_13-14_LZG.xlsx'
+        filepath = self.base_path + 'DataExport_13-14_LZG.xlsx'
         raw_data_1314 = self.get_raw_excel_data(DataImportFields1314.fields, filepath)
         data_1314 = self.clean_raw_data_1(raw_data_1314)
         western_data_1314 = [item for item in data_1314 if item['Race'] == BeeType.WESTERN]
@@ -35,7 +38,7 @@ class DataController(object):
         
         # 1415年数据读入
         # 数据清洗，过滤掉无效数据
-        filepath = '/Users/liuchao/work3/honey_bee/181029/data/DataExport-COLOSS14-15.xlsx'
+        filepath = self.base_path + 'DataExport-COLOSS14-15.xlsx'
         raw_data_1415 = self.get_raw_excel_data(DataImportFields1415.fields, filepath)
         data_1415 = self.clean_raw_data_1(raw_data_1415)
         western_data_1415 = [item for item in data_1415 if item['Race'] == BeeType.WESTERN]
@@ -44,7 +47,7 @@ class DataController(object):
         # 1516年数据读入
         # 数据清洗，过滤掉无效数据
         # import pdb; pdb.set_trace()
-        filepath = '/Users/liuchao/work3/honey_bee/181029/data/Data-coloss15-16.xlsx'
+        filepath = self.base_path + 'Data-coloss15-16.xlsx'
         raw_data_1516 = self.get_raw_excel_data(DataImportFields1516.fields, filepath)
         data_1516 = self.clean_raw_data_2(raw_data_1516)
         western_data_1516 = [item for item in data_1516 if item['Race'] == BeeType.WESTERN]
@@ -52,7 +55,7 @@ class DataController(object):
 
         # 1617年数据读入
         # 数据清洗，过滤掉无效数据
-        filepath = '/Users/liuchao/work3/honey_bee/181029/data/Data-coloss 16-17.xlsx'
+        filepath = self.base_path + 'Data-coloss 16-17.xlsx'
         raw_data_1617 = self.get_raw_excel_data(DataImportFields1617.fields, filepath)
         data_1617 = self.clean_raw_data_2(raw_data_1617)
         western_data_1617 = [item for item in data_1617 if item['Race'] == BeeType.WESTERN]
@@ -80,6 +83,14 @@ class DataController(object):
         loss_rate1617 = {}
         # 准备数据
         total_data = data_1314 + data_1415 + data_1516 + data_1617
+        total_col_init_oct_1314 = [int(item.get('COL_INIT_OCT')) for item in data_1314]
+        total_col_loss_1314 = [int(item.get('COL_LOSS')) for item in data_1314]
+        total_col_init_oct_1415 = [int(item.get('COL_INIT_OCT')) for item in data_1415]
+        total_col_loss_1415 = [int(item.get('COL_LOSS')) for item in data_1415]
+        total_col_init_oct_1516 = [int(item.get('COL_INIT_OCT')) for item in data_1516]
+        total_col_loss_1516 = [int(item.get('COL_LOSS')) for item in data_1516]
+        total_col_init_oct_1617 = [int(item.get('COL_INIT_OCT')) for item in data_1617]
+        total_col_loss_1617 = [int(item.get('COL_LOSS')) for item in data_1617]
         total_col_init_oct = total_col_init_oct_1314 + total_col_init_oct_1415 + \
                             total_col_init_oct_1516 + total_col_init_oct_1617
         total_col_loss = total_col_loss_1314 + total_col_loss_1415 + \
@@ -89,23 +100,15 @@ class DataController(object):
         total_loss_rate = self.cal_total_loss_rate(total_col_init_oct, total_col_loss)
         loss_rate['total'] = total_loss_rate
         # 按年份损失率
-        total_col_init_oct_1314 = [int(item.get('COL_INIT_OCT')) for item in data_1314]
-        total_col_loss_1314 = [int(item.get('COL_LOSS')) for item in data_1314]
         loss_rate_1314 = self.cal_total_loss_rate(total_col_init_oct_1314, total_col_loss_1314)
         loss_rate['13-14'] = loss_rate_1314
 
-        total_col_init_oct_1415 = [int(item.get('COL_INIT_OCT')) for item in data_1415]
-        total_col_loss_1415 = [int(item.get('COL_LOSS')) for item in data_1415]
         loss_rate_1415 = self.cal_total_loss_rate(total_col_init_oct_1415, total_col_loss_1415)
         loss_rate['14-15'] = loss_rate_1415
 
-        total_col_init_oct_1516 = [int(item.get('COL_INIT_OCT')) for item in data_1516]
-        total_col_loss_1516 = [int(item.get('COL_LOSS')) for item in data_1516]
         loss_rate_1516 = self.cal_total_loss_rate(total_col_init_oct_1516, total_col_loss_1516)
         loss_rate['15-16'] = loss_rate_1516
 
-        total_col_init_oct_1617 = [int(item.get('COL_INIT_OCT')) for item in data_1617]
-        total_col_loss_1617 = [int(item.get('COL_LOSS')) for item in data_1617]
         loss_rate_1617 = self.cal_total_loss_rate(total_col_init_oct_1617, total_col_loss_1617)
         loss_rate['16-17'] = loss_rate_1617
         
@@ -150,6 +153,11 @@ class DataController(object):
         comb_col_init = {}
         comb_col_loss = {}
 
+        # 换王次数 QChange
+        loss_rate['qchange'] = {}
+        qchange_col_init = {}
+        qchange_col_loss = {}
+
         for item in input_data:
             province = item['Province']
             col_init = int(item.get('COL_INIT_OCT'))
@@ -184,9 +192,19 @@ class DataController(object):
                 comb_col_init[comb].append(col_init)
                 comb_col_loss[comb].append(col_loss)
 
+            # 换王次数
+            qchange = item['QChange']
+            if qchange not in qchange_col_init.keys():
+                qchange_col_init[qchange] = [col_init]
+                qchange_col_loss[qchange] = [col_loss]
+            else:
+                qchange_col_init[qchange].append(col_init)
+                qchange_col_loss[qchange].append(col_loss)
 
+        # import pdb;pdb.set_trace()
         # 按省份损失率
         for province in self.province_list:
+            loss_rate['province'][province] = {}
             if province not in province_col_init.keys():
                 loss_rate['province'][province]["num"] = 0
                 loss_rate['province'][province] = (0.0, 0.0, 0.0)
@@ -198,12 +216,14 @@ class DataController(object):
         # 按蜂群大小损失率
         for apiary in [ApiarySize.SMALL, ApiarySize.MEDIUM, ApiarySize.LARGE]:
             apiary_loss_rate = self.cal_total_loss_rate(apiary_col_init[apiary], apiary_col_loss[apiary])
+            loss_rate['apiary'][apiary] = {}
             loss_rate['apiary'][apiary]["num"] = len(apiary_col_init[apiary])
             loss_rate['apiary'][apiary]["mfi"] = apiary_loss_rate
 
         # 新脾比例 Comb
         # 散点图和线性回归？？？？
         for comb in self.comb_list:
+            loss_rate['comb'][comb] = {}
             if comb not in comb_col_init.keys():
                 loss_rate['comb'][comb]["num"] = 0
                 loss_rate['comb'][comb]["mfi"] = (0.0, 0.0, 0.0)
@@ -211,10 +231,9 @@ class DataController(object):
                 comb_loss_rate = self.cal_total_loss_rate(comb_col_init[comb], comb_col_loss[comb])
                 loss_rate['comb'][comb]["num"] = len(comb_col_init[comb])
                 loss_rate['comb'][comb]["mfi"] = comb_loss_rate
-        print(loss_rate['comb'])
         
         # 平均每群产蜜量
-
+        # 无
 
         # 采用的换王方法： 自然更换王替， 购买蜂王，自己育王
 
@@ -224,8 +243,16 @@ class DataController(object):
 
 
         # 换王次数
-
-
+        for qchange in self.qchange_num_list:
+            loss_rate['qchange'][qchange] = {}
+            if qchange not in qchange_col_init.keys():
+                loss_rate['qchange'][qchange]["num"] = 0
+                loss_rate['qchange'][qchange]["mfi"] = (0.0, 0.0, 0.0)
+            else:
+                qchange_loss_rate = self.cal_total_loss_rate(qchange_col_init[qchange], qchange_col_loss[qchange])
+                loss_rate['qchange'][qchange]["num"] = len(qchange_col_init[qchange])
+                loss_rate['qchange'][qchange]["mfi"] = qchange_loss_rate
+        print(loss_rate['qchange'])
         
         # 蜜源植物
 
@@ -308,7 +335,41 @@ class DataController(object):
             value['Comb'] = comb
             row_value['Comb'] = comb
             self.comb_list.add(comb)
-            # 
+            # 采用的换王方法  QCol自然更换  QOp 自己育王 QBreed 购买蜂王
+            qcol = value.get('QCol')
+            qop = value.get('QOp')
+            qbreed = value.get('QBreed')
+            change_method = {
+                "col": int(qcol),
+                "op": int(qop),
+                "breed": int(qbreed),
+            }
+            value['ChangeMethod'] = change_method
+            row_value['ChangeMethod'] = change_method
+            
+            # 换王次数
+            qchange = value.get('QChange')
+            if qchange is None:
+                # 不合格数据
+                continue
+            qchange = int(qchange)
+            self.qchange_num_list.add(qchange)
+            value['QChange'] = qchange
+            row_value['QChange'] = qchange
+
+            # 新蜂王比例
+
+            # 平均每群产蜜量
+
+            # 蜜源植物
+
+            # 敌害
+
+            # 越冬饲喂
+
+            # 治螨
+
+
             data.append(value)
 
         return data
@@ -389,8 +450,55 @@ class DataController(object):
             except:
                 continue
 
+            # 采用的换王方法  QCol自然更换  QOp 自己育王 QBreed 购买蜂王
 
+            # 换王次数
+            qchange = value.get('QChange')
+            if qchange is None:
+                # 不合格数据
+                continue
 
+            if isinstance(qchange, str):
+                if '全部' in qchange:
+                    continue
+                elif '两次' in qchange:
+                    qchange = 2
+                elif '—' in qchange:
+                    # import pdb;pdb.set_trace()
+                    # 1—2次 的情况
+                    qchange_list = qchange.split("—")
+                    qchange = qchange_list[0]
+                elif '-' in qchange:
+                    # import pdb;pdb.set_trace()
+                    # 1-2 的情况
+                    qchange_list = qchange.split("-")
+                    qchange = qchange_list[0]
+                elif '次' in qchange:
+                    qchange = qchange[:-1]
+                elif '无' in qchange:
+                    qchange = 0
+                elif '~' in qchange:
+                    # 1~2 的情况
+                    qchange_list = qchange.split("~")
+                    qchange = qchange_list[0]
+           
+            qchange = int(qchange)
+            self.qchange_num_list.add(qchange)
+            value['QChange'] = qchange
+            row_value['QChange'] = qchange
+
+            # 新蜂王比例
+            
+            # 平均每群产蜜量
+
+            # 蜜源植物
+
+            # 敌害
+
+            # 越冬饲喂
+
+            # 治螨
+            
             data.append(value)
 
         return data

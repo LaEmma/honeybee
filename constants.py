@@ -2,6 +2,10 @@
 
 class BaseDataImportFields1(object):
     # 13-14， 14-15年标题比较相似
+    '''
+    换王方式： QCol自然更换  QOp 自己育王 QBreed 购买蜂王
+    换王次数： QChange
+    ''' 
     PROVINCEID = 'ProvinceID'
     CDS = 'CDS'
     LOSSNOFEED = 'LossNoFeed'
