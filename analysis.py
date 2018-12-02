@@ -20,6 +20,7 @@ class DataController(object):
         self.province_list = set()
         self.comb_list = set()
         self.qchange_num_list = set()
+        self.nectar_list = set()
         self.base_path = "F:/Emma/data/"
         # self.base_path = "/Users/liuchao/work3/honey_bee/181029/data/"
 
@@ -362,6 +363,9 @@ class DataController(object):
             # 平均每群产蜜量
 
             # 蜜源植物
+            
+
+            self.nectar_list.add(nectar)
 
             # 敌害
 
