@@ -2,11 +2,33 @@
 import numpy as np
 import scipy.stats 
 import re
+import pprint
 from file_import import ExcelImporter
 from constants import DataImportFields1314, DataImportFields1415, \
     DataImportFields1516, DataImportFields1617, Province, ApiarySize,\
     BeeType
 from utils import is_valid_data
+
+import matplotlib
+import matplotlib.pyplot as plt
+
+'''
+结果说明
+
+total 
+    province
+        anhui
+            mfi
+            num
+13-14
+    province
+14-15
+    province
+        
+15-16
+    province
+
+'''
 
 
 class DataController(object):
@@ -21,8 +43,8 @@ class DataController(object):
         self.comb_list = set()
         self.qchange_num_list = set()
         self.nectar_list = set()
-        self.base_path = "F:/Emma/data/"
-        # self.base_path = "/Users/liuchao/work3/honey_bee/181029/data/"
+        # self.base_path = "F:/Emma/data/"
+        self.base_path = "/Users/liuchao/work3/honey_bee/181029/data/"
 
 
     def analysis(self):
@@ -70,10 +92,12 @@ class DataController(object):
         self.western_loss_rate = self.calculation(western_data_1314, western_data_1415,\
             western_data_1516, western_data_1617)
         # print("西蜂： %s" % self.western_loss_rate)
+        self.plot_apiary(loss_rate['apiary'])
+        
         ################ 中蜂 #######################
-        print("中蜂")
-        self.eastern_loss_rate = self.calculation(eastern_data_1314, eastern_data_1415,\
-            eastern_data_1516, eastern_data_1617)
+        # print("中蜂")
+        # self.eastern_loss_rate = self.calculation(eastern_data_1314, eastern_data_1415,\
+        #     eastern_data_1516, eastern_data_1617)
         # print("中蜂： %s" % self.eastern_loss_rate)
 
     def calculation(self, data_1314, data_1415, data_1516, data_1617):
@@ -128,14 +152,16 @@ class DataController(object):
         'apiary': {'small': (xxx, xxx, xxx)}},
         'comb': {'0': (xxx, xxx, xxx)}},
         '''
-        return {
+        # pprint.pprint(loss_rate)
+        result = {
             "total": loss_rate,
             "13-14": loss_rate1314,
             "14-15": loss_rate1415,
             "15-16": loss_rate1516,
             "16-17": loss_rate1617,
         }
-
+        # pprint.pprint(result)
+        return result
 
     def inner_calculation(self, input_data):
         # 按省份损失率
@@ -160,6 +186,7 @@ class DataController(object):
         qchange_col_loss = {}
 
         for item in input_data:
+            
             province = item['Province']
             col_init = int(item.get('COL_INIT_OCT'))
             col_loss = int(item.get('COL_LOSS'))
@@ -181,6 +208,7 @@ class DataController(object):
             else:
                 apiary_col_init[apiary].append(col_init)
                 apiary_col_loss[apiary].append(col_loss)
+
 
             comb = item['Comb']
             # col_init = int(item.get('COL_INIT_OCT'))
@@ -208,7 +236,7 @@ class DataController(object):
             loss_rate['province'][province] = {}
             if province not in province_col_init.keys():
                 loss_rate['province'][province]["num"] = 0
-                loss_rate['province'][province] = (0.0, 0.0, 0.0)
+                loss_rate['province'][province]["mfi"] = (0.0, 0.0, 0.0)
             else:
                 province_loss_rate = self.cal_total_loss_rate(province_col_init[province], province_col_loss[province])
                 loss_rate['province'][province]["num"] = len(province_col_init[province])
@@ -217,9 +245,21 @@ class DataController(object):
         # 按蜂群大小损失率
         for apiary in [ApiarySize.SMALL, ApiarySize.MEDIUM, ApiarySize.LARGE]:
             apiary_loss_rate = self.cal_total_loss_rate(apiary_col_init[apiary], apiary_col_loss[apiary])
+            num = len(apiary_col_init[apiary])
             loss_rate['apiary'][apiary] = {}
-            loss_rate['apiary'][apiary]["num"] = len(apiary_col_init[apiary])
+            loss_rate['apiary'][apiary]["num"] = num
             loss_rate['apiary'][apiary]["mfi"] = apiary_loss_rate
+            # 画图用
+            rate = []
+            for count in range(num):
+                start = apiary_col_init[apiary][count]
+                end = apiary_col_loss[apiary][count]
+                if start > 0:
+                    rate.append(float(end/start))
+                else:
+                    rate.append(0)
+            loss_rate['apiary'][apiary]["rate"] = rate
+            # print("===one_loss_rate: %s" % rate)
 
         # 新脾比例 Comb
         # 散点图和线性回归？？？？
@@ -253,7 +293,7 @@ class DataController(object):
                 qchange_loss_rate = self.cal_total_loss_rate(qchange_col_init[qchange], qchange_col_loss[qchange])
                 loss_rate['qchange'][qchange]["num"] = len(qchange_col_init[qchange])
                 loss_rate['qchange'][qchange]["mfi"] = qchange_loss_rate
-        print(loss_rate['qchange'])
+        # print(loss_rate['qchange'])
         
         # 蜜源植物
 
@@ -365,7 +405,7 @@ class DataController(object):
             # 蜜源植物
             
 
-            self.nectar_list.add(nectar)
+            # self.nectar_list.add(nectar)
 
             # 敌害
 
@@ -506,6 +546,23 @@ class DataController(object):
             data.append(value)
 
         return data
+    def plot_apiary(data):
+        small_rate = data[ApiarySize.SMALL]["rate"]
+        medium_rate = data[ApiarySize.MEDIUM]["rate"]
+        large_rate = data[ApiarySize.LARGE]["rate"]
+        total_rate = small_rate + medium_rate + large_rate
+        small_x = [ApiarySize.SMALL] * len(small_rate)
+        medium_x = [ApiarySize.MEDIUM] * len(medium_rate)
+        large_x = [ApiarySize.LARGE] * len(large_rate)
+        total_x = small_x + medium_x + large_x
+        self.plot(total_x, total_rate)
+
+    def plot(self, x_axis, y_axis, type="scatter"):
+        if type == "scatter":
+            plt.scatter(x_axis, y_axis, s=200, label = '$like$', c = 'blue', marker='.', alpha = None, edgecolors= 'white')
+            plt.legend()
+            plt.show()
+
 
     def cal_total_loss_rate(self, total_colony_num, total_loss_num):
         loss_rate = 0
