@@ -9,8 +9,16 @@ from constants import DataImportFields1314, DataImportFields1415, \
     BeeType
 from utils import is_valid_data
 
+# import matplotlib
+# import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+'''
+$ vim ~/.matplotlib/matplotlibrc
+backend: TkAgg
+'''
 
 '''
 结果说明
@@ -91,13 +99,16 @@ class DataController(object):
         print("西蜂")
         self.western_loss_rate = self.calculation(western_data_1314, western_data_1415,\
             western_data_1516, western_data_1617)
-        # print("西蜂： %s" % self.western_loss_rate)
-        self.plot_apiary(loss_rate['apiary'])
+        # self.plot_apiary(data=self.western_loss_rate['total']['apiary'], label="西蜂蜂场大小损失率")
+        # self.plot_comb(data=self.western_loss_rate['total']['comb'], label="西蜂新脾比例损失率")
         
         ################ 中蜂 #######################
-        # print("中蜂")
-        # self.eastern_loss_rate = self.calculation(eastern_data_1314, eastern_data_1415,\
-        #     eastern_data_1516, eastern_data_1617)
+        print("中蜂")
+        self.eastern_loss_rate = self.calculation(eastern_data_1314, eastern_data_1415,\
+            eastern_data_1516, eastern_data_1617)
+        # self.plot_apiary(data=self.eastern_loss_rate['total']['apiary'], label="中蜂蜂场大小损失率")
+        # self.plot_comb(data=self.eastern_loss_rate['total']['comb'], label="中蜂新脾比例损失率")
+        
         # print("中蜂： %s" % self.eastern_loss_rate)
 
     def calculation(self, data_1314, data_1415, data_1516, data_1617):
@@ -264,14 +275,27 @@ class DataController(object):
         # 新脾比例 Comb
         # 散点图和线性回归？？？？
         for comb in self.comb_list:
+            # import pdb; pdb.set_trace()
             loss_rate['comb'][comb] = {}
             if comb not in comb_col_init.keys():
+                num = 0
                 loss_rate['comb'][comb]["num"] = 0
                 loss_rate['comb'][comb]["mfi"] = (0.0, 0.0, 0.0)
             else:
+                num = len(comb_col_init[comb])
                 comb_loss_rate = self.cal_total_loss_rate(comb_col_init[comb], comb_col_loss[comb])
                 loss_rate['comb'][comb]["num"] = len(comb_col_init[comb])
                 loss_rate['comb'][comb]["mfi"] = comb_loss_rate
+            # 画图用
+            rate = []
+            for count in range(num):
+                start = comb_col_init[comb][count]
+                end = comb_col_loss[comb][count]
+                if start > 0:
+                    rate.append(float(end/start))
+                else:
+                    rate.append(0)
+            loss_rate['comb'][comb]["rate"] = rate
         
         # 平均每群产蜜量
         # 无
@@ -373,6 +397,9 @@ class DataController(object):
                 # 不合格数据
                 continue
             comb = int(comb)
+            if comb > 100: 
+                # 不合格数据
+                continue
             value['Comb'] = comb
             row_value['Comb'] = comb
             self.comb_list.add(comb)
@@ -488,6 +515,10 @@ class DataController(object):
                     if comb < 1:
                         comb *= 100
                 comb = int(comb)
+                if comb > 100:
+                    # 不合格数据
+                    continue
+                
                 value['Comb'] = comb
                 row_value['Comb'] = comb
                 self.comb_list.add(comb)
@@ -546,21 +577,34 @@ class DataController(object):
             data.append(value)
 
         return data
-    def plot_apiary(data):
+    def plot_apiary(self, data, label=''):
         small_rate = data[ApiarySize.SMALL]["rate"]
         medium_rate = data[ApiarySize.MEDIUM]["rate"]
         large_rate = data[ApiarySize.LARGE]["rate"]
         total_rate = small_rate + medium_rate + large_rate
-        small_x = [ApiarySize.SMALL] * len(small_rate)
-        medium_x = [ApiarySize.MEDIUM] * len(medium_rate)
-        large_x = [ApiarySize.LARGE] * len(large_rate)
+        small_x = ["小型"] * len(small_rate)
+        medium_x = ["中型"] * len(medium_rate)
+        large_x = ["大型"] * len(large_rate)
         total_x = small_x + medium_x + large_x
-        self.plot(total_x, total_rate)
+        self.plot(total_x, total_rate, label=label)
 
-    def plot(self, x_axis, y_axis, type="scatter"):
+    def plot_comb(self, data, label=''):
+        total_rate = []
+        total_x = []
+        for comb in self.comb_list:
+            total_rate += data[comb]["rate"]
+            total_x += [comb] * len(data[comb]["rate"])
+        self.plot(total_x, total_rate, label=label)
+
+    def plot(self, x_axis, y_axis, label, type="scatter"):
         if type == "scatter":
-            plt.scatter(x_axis, y_axis, s=200, label = '$like$', c = 'blue', marker='.', alpha = None, edgecolors= 'white')
-            plt.legend()
+            fig, ax = plt.subplots()
+            plt.rcParams['font.sans-serif']=['SimHei']
+            plt.rcParams['axes.unicode_minus']=False
+            ax.scatter(x_axis, y_axis, s=200, marker='.', alpha = None, edgecolors= 'black', c='')
+            ax.set_ylabel('损失率', fontsize=12)
+            ax.set_title(label, fontsize=15)
+            # plt.legend()
             plt.show()
 
 
