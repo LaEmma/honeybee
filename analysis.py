@@ -103,15 +103,17 @@ class DataController(object):
         print("西蜂")
         self.western_loss_rate = self.calculation(western_data_1314, western_data_1415,\
             western_data_1516, western_data_1617)
-        self.plot_apiary(data=self.western_loss_rate['total']['apiary'], label="西蜂蜂场大小损失率")
-        # self.plot_comb(data=self.western_loss_rate['total']['comb'], label="西蜂新脾比例损失率")
+        self.plot_apiary(data=self.western_loss_rate['total']['apiary'], label="西蜂蜂场大小损失率", type='sklearn')
+        self.plot_comb(data=self.western_loss_rate['total']['comb'], label="西蜂新脾比例损失率", type='sklearn')
+        # self.plot_qchange(data=self.western_loss_rate['total']['qchange'], label="西蜂换王次数损失率")
         
         ################ 中蜂 #######################
         print("中蜂")
         self.eastern_loss_rate = self.calculation(eastern_data_1314, eastern_data_1415,\
             eastern_data_1516, eastern_data_1617)
-        # self.plot_apiary(data=self.eastern_loss_rate['total']['apiary'], label="中蜂蜂场大小损失率")
-        # self.plot_comb(data=self.eastern_loss_rate['total']['comb'], label="中蜂新脾比例损失率")
+        self.plot_apiary(data=self.eastern_loss_rate['total']['apiary'], label="中蜂蜂场大小损失率", type='sklearn')
+        self.plot_comb(data=self.eastern_loss_rate['total']['comb'], label="中蜂新脾比例损失率", type='sklearn')
+        # self.plot_qchange(data=self.eastern_loss_rate['total']['qchange'], label="中蜂换王次数损失率")
         
         # print("中蜂： %s" % self.eastern_loss_rate)
 
@@ -301,8 +303,32 @@ class DataController(object):
                 if start > 0:
                     rate.append(float(end/start))
                 else:
-                    rate.append(0)
+                    continue
             loss_rate['comb'][comb]["rate"] = rate
+
+        # 换王次数
+        # print(self.qchange_num_list)
+        for qchange in self.qchange_num_list:
+            loss_rate['qchange'][qchange] = {}
+            if qchange not in qchange_col_init.keys():
+                num = 0
+                loss_rate['qchange'][qchange]["num"] = 0
+                loss_rate['qchange'][qchange]["mfi"] = (0.0, 0.0, 0.0)
+            else:
+                num = len(qchange_col_init[qchange])
+                qchange_loss_rate = self.cal_total_loss_rate(qchange_col_init[qchange], qchange_col_loss[qchange])
+                loss_rate['qchange'][qchange]["num"] = num
+                loss_rate['qchange'][qchange]["mfi"] = qchange_loss_rate
+            # 画图用
+            rate = []
+            for count in range(num):
+                start = qchange_col_init[qchange][count]
+                end = qchange_col_loss[qchange][count]
+                if start > 0:
+                    rate.append(float(end/start))
+                else:
+                    continue
+            loss_rate['qchange'][qchange]["rate"] = rate
         
         # 平均每群产蜜量
         # 无
@@ -313,19 +339,7 @@ class DataController(object):
         # 新蜂王比例
 
 
-
-        # 换王次数
-        for qchange in self.qchange_num_list:
-            loss_rate['qchange'][qchange] = {}
-            if qchange not in qchange_col_init.keys():
-                loss_rate['qchange'][qchange]["num"] = 0
-                loss_rate['qchange'][qchange]["mfi"] = (0.0, 0.0, 0.0)
-            else:
-                qchange_loss_rate = self.cal_total_loss_rate(qchange_col_init[qchange], qchange_col_loss[qchange])
-                loss_rate['qchange'][qchange]["num"] = len(qchange_col_init[qchange])
-                loss_rate['qchange'][qchange]["mfi"] = qchange_loss_rate
-        # print(loss_rate['qchange'])
-        
+            
         # 蜜源植物
 
 
@@ -429,6 +443,9 @@ class DataController(object):
                 # 不合格数据
                 continue
             qchange = int(qchange)
+            if qchange > 5:
+                # 换王次数大于5次的踢掉
+                continue
             self.qchange_num_list.add(qchange)
             value['QChange'] = qchange
             row_value['QChange'] = qchange
@@ -547,7 +564,7 @@ class DataController(object):
 
             if isinstance(qchange, str):
                 if '全部' in qchange:
-                    continue
+                    qchange = 1
                 elif '两次' in qchange:
                     qchange = 2
                 elif '—' in qchange:
@@ -570,6 +587,8 @@ class DataController(object):
                     qchange = qchange_list[0]
            
             qchange = int(qchange)
+            if qchange > 5:
+                continue
             self.qchange_num_list.add(qchange)
             value['QChange'] = qchange
             row_value['QChange'] = qchange
@@ -617,6 +636,25 @@ class DataController(object):
             total_x += [comb] * len(data[comb]["rate"])
         if type == 'plot':
             self.plot(total_x, total_rate, label=label)
+        else:
+            self.sklearn(total_x, total_rate, label=label)
+
+    def plot_qchange(self, data, label='', type='plot'):
+        total_rate = []
+        total_x = []
+        for qchange in self.qchange_num_list:
+            total_rate += data[qchange]["rate"]
+            total_x += [qchange] * len(data[qchange]["rate"])
+        if type == 'plot':
+            fig, ax = plt.subplots()
+            plt.rcParams['font.sans-serif']=['SimHei']
+            plt.rcParams['axes.unicode_minus']=False
+            plt.xticks(range(0, 5))
+            ax.scatter(total_x, total_rate, s=100, marker='.', alpha = None, edgecolors= 'black', c='')
+            ax.set_ylabel('损失率', fontsize=12)
+            ax.set_title(label, fontsize=15)
+            # plt.legend()
+            plt.show()
         else:
             self.sklearn(total_x, total_rate, label=label)
 
