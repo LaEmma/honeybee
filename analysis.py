@@ -8,6 +8,9 @@ from constants import DataImportFields1314, DataImportFields1415, \
     DataImportFields1516, DataImportFields1617, Province, ApiarySize,\
     BeeType
 from utils import is_valid_data
+from sklearn.model_selection import train_test_split 
+from sklearn.metrics import mean_squared_error
+from sklearn import linear_model
 
 # import matplotlib
 # import matplotlib.pyplot as plt
@@ -50,6 +53,7 @@ class DataController(object):
         self.province_list = set()
         self.comb_list = set()
         self.qchange_num_list = set()
+        # self.qchange_method_list = set()
         self.nectar_list = set()
         # self.base_path = "F:/Emma/data/"
         self.base_path = "/Users/liuchao/work3/honey_bee/181029/data/"
@@ -99,7 +103,7 @@ class DataController(object):
         print("西蜂")
         self.western_loss_rate = self.calculation(western_data_1314, western_data_1415,\
             western_data_1516, western_data_1617)
-        # self.plot_apiary(data=self.western_loss_rate['total']['apiary'], label="西蜂蜂场大小损失率")
+        self.plot_apiary(data=self.western_loss_rate['total']['apiary'], label="西蜂蜂场大小损失率")
         # self.plot_comb(data=self.western_loss_rate['total']['comb'], label="西蜂新脾比例损失率")
         
         ################ 中蜂 #######################
@@ -185,7 +189,7 @@ class DataController(object):
         loss_rate['apiary'] = {}
         apiary_col_init = {}
         apiary_col_loss = {}
-
+        apiary_number_list = {}
         # 新脾比例 Comb
         loss_rate['comb'] = {}
         comb_col_init = {}
@@ -196,8 +200,8 @@ class DataController(object):
         qchange_col_init = {}
         qchange_col_loss = {}
 
+
         for item in input_data:
-            
             province = item['Province']
             col_init = int(item.get('COL_INIT_OCT'))
             col_loss = int(item.get('COL_LOSS'))
@@ -210,16 +214,18 @@ class DataController(object):
                 province_col_loss[province].append(col_loss)
         
             apiary = item['ApiarySize']
+            apiary_number = item['ApiarySizeNumber']
             # col_init = int(item.get('COL_INIT_OCT'))
             # col_loss = int(item.get('COL_LOSS'))
 
             if apiary not in apiary_col_init.keys():
                 apiary_col_init[apiary] = [col_init]
                 apiary_col_loss[apiary] = [col_loss]
+                apiary_number_list[apiary] = [apiary_number]
             else:
                 apiary_col_init[apiary].append(col_init)
                 apiary_col_loss[apiary].append(col_loss)
-
+                apiary_number_list[apiary].append(apiary_number)
 
             comb = item['Comb']
             # col_init = int(item.get('COL_INIT_OCT'))
@@ -270,6 +276,7 @@ class DataController(object):
                 else:
                     rate.append(0)
             loss_rate['apiary'][apiary]["rate"] = rate
+            loss_rate['apiary'][apiary]["size_number"] = apiary_number_list[apiary]
             # print("===one_loss_rate: %s" % rate)
 
         # 新脾比例 Comb
@@ -385,7 +392,9 @@ class DataController(object):
             # 蜂群大小
             apiary_size = ApiarySize.mapping_apiary_size(init_colony_num)
             value['ApiarySize'] = apiary_size
+            value['ApiarySizeNumber'] = int(init_colony_num)
             row_value['ApiarySize'] = apiary_size
+            row_value['ApiarySizeNumber'] = int(init_colony_num)
             # 蜂群种类： 西蜂。。。
             type_code = value.get("Race", 0)
             bee_type = BeeType.mapping_bee_type_by_code(str(type_code))
@@ -414,7 +423,6 @@ class DataController(object):
             }
             value['ChangeMethod'] = change_method
             row_value['ChangeMethod'] = change_method
-            
             # 换王次数
             qchange = value.get('QChange')
             if qchange is None:
@@ -488,6 +496,8 @@ class DataController(object):
             apiary_size = ApiarySize.mapping_apiary_size(init_colony_num)
             value['ApiarySize'] = apiary_size
             row_value['ApiarySize'] = apiary_size
+            value['ApiarySizeNumber'] = int(init_colony_num)
+            row_value['ApiarySizeNumber'] = int(init_colony_num)
             # 蜂群种类： 西蜂。。。
             type_code = value.get("Race", 0)
             bee_type = BeeType.mapping_bee_type_by_str(str(type_code))
@@ -526,6 +536,8 @@ class DataController(object):
                 continue
 
             # 采用的换王方法  QCol自然更换  QOp 自己育王 QBreed 购买蜂王
+
+
 
             # 换王次数
             qchange = value.get('QChange')
@@ -577,7 +589,7 @@ class DataController(object):
             data.append(value)
 
         return data
-    def plot_apiary(self, data, label=''):
+    def plot_apiary(self, data, label='', type='sklearn'):
         small_rate = data[ApiarySize.SMALL]["rate"]
         medium_rate = data[ApiarySize.MEDIUM]["rate"]
         large_rate = data[ApiarySize.LARGE]["rate"]
@@ -586,27 +598,79 @@ class DataController(object):
         medium_x = ["中型"] * len(medium_rate)
         large_x = ["大型"] * len(large_rate)
         total_x = small_x + medium_x + large_x
-        self.plot(total_x, total_rate, label=label)
 
-    def plot_comb(self, data, label=''):
+        small_number = data[ApiarySize.SMALL]["size_number"]
+        medium_number = data[ApiarySize.MEDIUM]["size_number"]
+        large_number = data[ApiarySize.LARGE]["size_number"]
+        total_number = small_number + medium_number + large_number
+
+        if type == 'plot':
+            self.plot(total_x, total_rate, label=label)
+        else:
+            self.sklearn(total_number, total_rate, label=label)
+
+    def plot_comb(self, data, label='', type='sklearn'):
         total_rate = []
         total_x = []
         for comb in self.comb_list:
             total_rate += data[comb]["rate"]
             total_x += [comb] * len(data[comb]["rate"])
-        self.plot(total_x, total_rate, label=label)
+        if type == 'plot':
+            self.plot(total_x, total_rate, label=label)
+        else:
+            self.sklearn(total_x, total_rate, label=label)
 
     def plot(self, x_axis, y_axis, label, type="scatter"):
         if type == "scatter":
             fig, ax = plt.subplots()
             plt.rcParams['font.sans-serif']=['SimHei']
             plt.rcParams['axes.unicode_minus']=False
-            ax.scatter(x_axis, y_axis, s=200, marker='.', alpha = None, edgecolors= 'black', c='')
+            ax.scatter(x_axis, y_axis, s=100, marker='.', alpha = None, edgecolors= 'black', c='')
             ax.set_ylabel('损失率', fontsize=12)
             ax.set_title(label, fontsize=15)
             # plt.legend()
             plt.show()
 
+    def sklearn(self, exam_X, exam_Y, label):
+        # import pdb; pdb.set_trace()
+        X_train, X_test, Y_train, Y_test = train_test_split(exam_X, exam_Y)
+        X_train = np.array(X_train).reshape(-1, 1)
+        X_test = np.array(X_test).reshape(-1, 1)
+
+        #创建一个模型
+        model = linear_model.LinearRegression()
+        #训练一下
+        model.fit(X_train, Y_train)
+
+        #因为线性回归一般方程为y = a+bx
+        #b为斜率，a为截距
+        #截距用intercept_
+        #斜率用model.coef_
+        a = model.intercept_
+        b = model.coef_
+        a = float(a)
+        b = float(b)
+        print('该模型的简单线性回归方程为y = {} + {} * x'.format(a, b))
+        fig, ax = plt.subplots()
+        plt.rcParams['font.sans-serif']=['SimHei']
+        plt.rcParams['axes.unicode_minus']=False
+        ax.scatter(exam_X, exam_Y, s=20, marker='.', alpha = None, color='black')
+        ax.set_ylabel('损失率', fontsize=12)
+        ax.set_title(label, fontsize=15)
+        
+        #绘制最佳拟合曲线
+        Y_train_pred = model.predict(X_train)
+        mse = mean_squared_error(Y_train, Y_train_pred)
+        # print("Diff: {}".format(np.sqrt(mse)))
+        if b > 0:
+            train_label = 'y=%.4f+%.5f*x, r2=%.5f' % (a, b, mse)
+        else:
+            train_label = 'y=%.4f%.5f*x, r2=%.5f' % (a, b, mse)
+        plt.plot(X_train, Y_train_pred, color = 'blue', label = train_label)
+
+        #输出效果图
+        plt.legend(loc = 2)
+        plt.show()
 
     def cal_total_loss_rate(self, total_colony_num, total_loss_num):
         loss_rate = 0
